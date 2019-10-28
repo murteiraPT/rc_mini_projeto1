@@ -7,11 +7,10 @@
 #include <sys/types.h> 
 #define MAX 80 
 #define PORT 8080 
-#define SA struct sockaddr 
+#define Socket_Adress struct sockaddr 
   
 // Function designed for chat between client and server. 
-void func(int sockfd) 
-{ 
+void func(int sockfd) { 
     char buff[MAX]; 
     int n; 
     // infinite loop for chat 
@@ -40,8 +39,7 @@ void func(int sockfd)
 } 
   
 // Driver function 
-int main() 
-{ 
+int main(int argc, char** argv) { 
     int sockfd, connfd, len; 
     struct sockaddr_in servaddr, cli; 
   
@@ -58,10 +56,10 @@ int main()
     // assign IP, PORT 
     servaddr.sin_family = AF_INET; 
     servaddr.sin_addr.s_addr = htonl(INADDR_ANY); 
-    servaddr.sin_port = htons(PORT); 
+    servaddr.sin_port = htons(atoi(argv[1]));           // PORT esrito nos argumentos da main
   
     // Binding newly created socket to given IP and verification 
-    if ((bind(sockfd, (SA*)&servaddr, sizeof(servaddr))) != 0) { 
+    if ((bind(sockfd, (Socket_Adress*)&servaddr, sizeof(servaddr))) != 0) { 
         printf("socket bind failed...\n"); 
         exit(0); 
     } 
@@ -78,7 +76,7 @@ int main()
     len = sizeof(cli); 
   
     // Accept the data packet from client and verification 
-    connfd = accept(sockfd, (SA*)&cli, &len); 
+    connfd = accept(sockfd, (Socket_Adress*)&cli, &len); 
     if (connfd < 0) { 
         printf("server acccept failed...\n"); 
         exit(0); 
