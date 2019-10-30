@@ -2,10 +2,21 @@
 #include <stdio.h> 
 #include <stdlib.h> 
 #include <string.h> 
-#include <sys/socket.h> 
+#include <sys/socket.h>
 #include <sys/time.h>
+
+
+
+#include <sys/types.h> 
+#include <netinet/in.h> 
+#include <errno.h> 
+#include <arpa/inet.h> 
+#include <unistd.h> 
+
+
 #define MAX 4097
 #define Socket_Adress struct sockaddr 
+#define h_addr h_addr_list[0]
 
 
 int main(int argc, char** argv) { 
@@ -30,7 +41,7 @@ int main(int argc, char** argv) {
 	int port = atoi(argv[2]);
 	
 	servaddr.sin_family = AF_INET; 
-	servaddr.sin_addr = *((struct in_addr *)newhost->h_addr) ; 
+	servaddr.sin_addr = *((struct in_addr *)newhost->h_addr);
 	servaddr.sin_port = htons(port);
 
 	// connect the client socket to server socket 
@@ -44,9 +55,7 @@ int main(int argc, char** argv) {
 		FD_SET(0, &file_desc);
 		FD_SET(sockfd, &file_desc);
 
-		int sel = select(sockfd + 1, &file_desc, NULL, NULL, NULL);
-
-		if (sel == -1) {
+		if( (select(sockfd + 1, &file_desc, NULL, NULL, NULL) < 0) && (errno!=EINTR) ) {
 			perror("Select error.");
 			exit(-1);
 		}
@@ -54,18 +63,11 @@ int main(int argc, char** argv) {
 		if(FD_ISSET(0, &file_desc)) {
 			memset(buffer, 0, MAX);
 			
-			if(read(0, buffer, MAX) == -1) {
+			if(read(0, buffer, MAX) == -1) 
 				perror("Read error.");
-			}
 			
-			if(send(sockfd, buffer, MAX, 0) != strlen(buffer)) {
+			if(send(sockfd, buffer, MAX, 0) == -1)
 				perror("Send error.");
-				exit(-1);
-			}
-
-		} else {
-			perror("FD_ISSET error.");
-			exit(-1);
 		}
 
 		if(FD_ISSET(sockfd, &file_desc)) {
@@ -76,13 +78,8 @@ int main(int argc, char** argv) {
 				exit(-1);
 			}
 			
-			printf("%s", buffer);
-			
-		} else {
-			perror("FD_ISSET error.");
-			exit(-1);
+			printf("%s", buffer);	
 		}
-		
 	}
 
 	// close the socket 

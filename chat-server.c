@@ -10,10 +10,9 @@
 #include <unistd.h> 
 
 #define MAX_MESSAGE 4097
-#define MAX_CLIENTS 100
+#define MAX_CLIENTS 1000
 
-int main(int argc , char *argv[]) 
-{ 
+int main(int argc , char *argv[]) { 
     int i, opt = 1; 
     int main_socket, addrsize , new_client_socket , client_socket[MAX_CLIENTS], read_out_value; 
     int main_socket_copy, socket_descriptor; 
