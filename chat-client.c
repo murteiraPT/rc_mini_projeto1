@@ -52,13 +52,17 @@ int main(int argc, char** argv) {
 		}
 
 		if(FD_ISSET(sockfd, &file_desc)) {
+			i = 0;
 			memset(buffer, 0, MAX);
 			recv(sockfd, buffer, MAX, 0);
-			printf("%s\n", buffer);
-		}
-		
-	}
 
+			while(buffer[i] != "\0") {
+				printf("%s", buffer);
+				i++;
+			}
+			print("\0");
+		}		
+	}
 	// close the socket 
 	close(sockfd); 
 } 
