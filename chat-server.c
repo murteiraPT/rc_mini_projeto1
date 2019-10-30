@@ -115,7 +115,7 @@ int main(int argc , char *argv[])
             
             //inform user of socket number - used in send and receive commands 
             memset(buffer, 0, MAX_MESSAGE);
-            sprintf(buffer,"%s:%d joined\n", inet_ntoa(address.sin_addr) , ntohs(address.sin_port)); 
+            sprintf(buffer,"%s:%d joined.\n", inet_ntoa(address.sin_addr) , ntohs(address.sin_port)); 
             printf("%s",buffer);
             //send new connection greeting message 
                         
@@ -145,15 +145,19 @@ int main(int argc , char *argv[])
             if(FD_ISSET( sd , &readfds)){ 
                 //Check if it was for closing , and also read the 
                 //incoming message 
+                getpeername(sd , (struct sockaddr*)&address, (socklen_t*)&addrlen); 
                 if ((valread = read( sd , buffer, MAX_MESSAGE)) == 0){ 
-                    //Somebody disconnected , get his details and print 
-                    getpeername(sd , (struct sockaddr*)&address , \ 
-                        (socklen_t*)&addrlen); 
-                    printf("Host disconnected , ip %s , port %d \n" , 
-                        inet_ntoa(address.sin_addr) , ntohs(address.sin_port)); 
-                        
+                    //Somebody disconnected , get his details and print
+                    sprintf(message,"%s:%d left.\n", inet_ntoa(address.sin_addr) , ntohs(address.sin_port));
+                    printf("%s",message); 
+
+                    for (int j = 0; j < max_clients; j++){
+                        if(client_socket[j] != 0 && client_socket[j] != client_socket[i]){
+                            send(client_socket[j], message, MAX_MESSAGE, 0);  
+                        }
+                    }
                     //Close the socket and mark as 0 in list for reuse 
-                    close( sd ); 
+                    close(sd); 
                     client_socket[i] = 0; 
                 } 
                     
@@ -164,17 +168,15 @@ int main(int argc , char *argv[])
                     //printf("RECEBI A MENSAGEM %s do client %d \n", buffer, i);
                     buffer[valread] = '\0'; 
                     sprintf(message,"%s:%d %s",inet_ntoa(address.sin_addr),ntohs(address.sin_port),buffer);
-
+                    printf("%s", message);
                     for (int j = 0; j < max_clients; j++){
                         if(client_socket[j] != 0 && client_socket[j] != client_socket[i]){
-                            //printf("MANDEI A MSG DO CLIENT %d PARA O CLIENT %d \n", i,j);
                             send(client_socket[j], message, MAX_MESSAGE, 0);  
                         }
                     }
                 } 
             } 
         } 
-    } 
-        
+    }       
     return 0; 
 } 

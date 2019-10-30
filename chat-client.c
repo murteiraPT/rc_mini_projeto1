@@ -18,10 +18,8 @@ int main(int argc, char** argv) {
 
 	if (sockfd == -1) { 
 		printf("Socket creation failed...\n"); 
-		exit(0); 
+		exit(-1); 
 	} 
-	else
-		printf("Socket successfully created...\n"); 
 	bzero(&servaddr, sizeof(servaddr)); 
 
 	// assign IP, PORT 
@@ -37,11 +35,8 @@ int main(int argc, char** argv) {
 	// connect the client socket to server socket 
 	if (connect(sockfd, (Socket_Adress*)&servaddr, sizeof(servaddr)) != 0) { 
 		printf("Connection with the server failed...\n"); 
-		exit(0); 
+		exit(-1); 
 	} 
-	else
-		printf("Connected to the server..\n"); 
-
 	while(1) {
 
 		FD_ZERO(&file_desc);
