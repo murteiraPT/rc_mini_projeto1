@@ -25,9 +25,14 @@ int main(int argc, char** argv) {
 	bzero(&server_adress, sizeof(server_adress)); 
 
 	// assign IP, PORT 
-	server_adress.sin_family = AF_INET; 
-	server_adress.sin_addr.s_addr = inet_addr(argv[1]);					// ADDR escrito nos argumentos
-	server_adress.sin_port = htons(atoi(argv[2]));						// PORT escrito nos argumentos
+
+	struct hostent * newhost = gethostbyname(argv[1]);
+
+	int port = atoi(argv[2]);
+	
+	servaddr.sin_family = AF_INET; 
+	servaddr.sin_addr = *((struct in_addr *)newhost->h_addr) ; 
+	servaddr.sin_port = htons(port);
 
 	// connect the client socket to server socket 
 	if (connect(sockfd, (Socket_Adress*)&server_adress, sizeof(server_adress)) != 0) { 
@@ -55,14 +60,11 @@ int main(int argc, char** argv) {
 			i = 0;
 			memset(buffer, 0, MAX);
 			recv(sockfd, buffer, MAX, 0);
-
-			while(buffer[i] != "\0") {
-				printf("%s", buffer);
-				i++;
-			}
-			print("\0");
-		}		
+			printf("%s\n", buffer);
+		}
+		
 	}
+
 	// close the socket 
 	close(sockfd); 
 } 
