@@ -129,7 +129,7 @@ int main(int argc , char *argv[])
 
                 if(client_socket[i] != 0){
                     if( send(client_socket[i], buffer, MAX_MESSAGE, 0) == -1){ 
-                        perror("send"); 
+                        perror("Send."); 
                     }    
                 }   
             } 

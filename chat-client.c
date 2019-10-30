@@ -3,6 +3,7 @@
 #include <stdlib.h> 
 #include <string.h> 
 #include <sys/socket.h> 
+#include <sys/time.h>
 #define MAX 4097
 #define Socket_Adress struct sockaddr 
 
@@ -43,18 +44,43 @@ int main(int argc, char** argv) {
 		FD_SET(0, &file_desc);
 		FD_SET(sockfd, &file_desc);
 
-		select(sockfd + 1, &file_desc, NULL, NULL, NULL);
+		int sel = select(sockfd + 1, &file_desc, NULL, NULL, NULL);
+
+		if (sel == -1) {
+			perror("Select error.");
+			exit(-1);
+		}
 
 		if(FD_ISSET(0, &file_desc)) {
 			memset(buffer, 0, MAX);
-			read(0, buffer, MAX);
-			send(sockfd, buffer, MAX, 0);
+			
+			if(read(0, buffer, MAX) == -1) {
+				perror("Read error.");
+			}
+			
+			if(send(sockfd, buffer, MAX, 0) != strlen(buffer)) {
+				perror("Send error.");
+				exit(-1);
+			}
+
+		} else {
+			perror("FD_ISSET error.");
+			exit(-1);
 		}
 
 		if(FD_ISSET(sockfd, &file_desc)) {
 			memset(buffer, 0, MAX);
-			recv(sockfd, buffer, MAX, 0);
+			
+			if(recv(sockfd, buffer, MAX, 0) == -1) {
+				perror("Receive error.");
+				exit(-1);
+			}
+			
 			printf("%s", buffer);
+			
+		} else {
+			perror("FD_ISSET error.");
+			exit(-1);
 		}
 		
 	}
