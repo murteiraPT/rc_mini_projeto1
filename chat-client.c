@@ -10,9 +10,9 @@
 
 int main(int argc, char** argv) { 
 	int sockfd, connfd; 
+	char buffer[MAX];
 	struct sockaddr_in servaddr, cli;
 	fd_set file_desc;
-	char buffer[MAX];
 
 	// socket create and varification 
 	sockfd = socket(AF_INET, SOCK_STREAM, 0); 
