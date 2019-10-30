@@ -9,7 +9,7 @@
 
 int main(int argc, char** argv) { 
 	int sockfd, connfd; 
-	struct sockaddr_in server_adress, cli;
+	struct sockaddr_in servaddr, cli;
 	fd_set file_desc;
 	char buffer[MAX];
 
@@ -22,7 +22,7 @@ int main(int argc, char** argv) {
 	} 
 	else
 		printf("Socket successfully created...\n"); 
-	bzero(&server_adress, sizeof(server_adress)); 
+	bzero(&servaddr, sizeof(servaddr)); 
 
 	// assign IP, PORT 
 
@@ -35,7 +35,7 @@ int main(int argc, char** argv) {
 	servaddr.sin_port = htons(port);
 
 	// connect the client socket to server socket 
-	if (connect(sockfd, (Socket_Adress*)&server_adress, sizeof(server_adress)) != 0) { 
+	if (connect(sockfd, (Socket_Adress*)&servaddr, sizeof(servaddr)) != 0) { 
 		printf("Connection with the server failed...\n"); 
 		exit(0); 
 	} 
@@ -57,10 +57,9 @@ int main(int argc, char** argv) {
 		}
 
 		if(FD_ISSET(sockfd, &file_desc)) {
-			i = 0;
 			memset(buffer, 0, MAX);
 			recv(sockfd, buffer, MAX, 0);
-			printf("%s\n", buffer);
+			printf("%s", buffer);
 		}
 		
 	}
