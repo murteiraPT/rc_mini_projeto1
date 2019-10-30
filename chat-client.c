@@ -3,35 +3,15 @@
 #include <stdlib.h> 
 #include <string.h> 
 #include <sys/socket.h> 
-#define MAX 4096		// estava com 80
+#define MAX 4097
 #define Socket_Adress struct sockaddr 
 
-void func(int sockfd) { 
-	char buff[MAX]; 
-	int n; 
-
-	for (;;) { 
-		bzero(buff, sizeof(buff)); 
-		printf("Enter the string : "); 
-		n = 0; 
-
-		while ((buff[n++] = getchar()) != '\n') 
-			; 
-		write(sockfd, buff, sizeof(buff)); 
-		bzero(buff, sizeof(buff)); 
-		read(sockfd, buff, sizeof(buff)); 
-		printf("From Server : %s", buff); 
-
-		if ((strncmp(buff, "exit", 4)) == 0) { 
-			printf("Client Exit...\n"); 
-			break; 
-		} 
-	} 
-} 
 
 int main(int argc, char** argv) { 
 	int sockfd, connfd; 
-	struct sockaddr_in server_adress, cli; 
+	struct sockaddr_in server_adress, cli;
+	fd_set file_desc;
+	char buffer[MAX];
 
 	// socket create and varification 
 	sockfd = socket(AF_INET, SOCK_STREAM, 0); 
@@ -46,7 +26,7 @@ int main(int argc, char** argv) {
 
 	// assign IP, PORT 
 	server_adress.sin_family = AF_INET; 
-	server_adress.sin_addr.s_addr = inet_addr(argv[1]);			// ADDR escrito nos argumentos
+	server_adress.sin_addr.s_addr = inet_addr(argv[1]);					// ADDR escrito nos argumentos
 	server_adress.sin_port = htons(atoi(argv[2]));						// PORT escrito nos argumentos
 
 	// connect the client socket to server socket 
@@ -57,8 +37,27 @@ int main(int argc, char** argv) {
 	else
 		printf("Connected to the server..\n"); 
 
-	// function for chat 
-	func(sockfd); 
+	while(1) {
+
+		FD_ZERO(&file_desc);
+		FD_SET(0, &file_desc);
+		FD_SET(sockfd, &file_desc);
+
+		select(sockfd + 1, &file_desc, NULL, NULL, NULL);
+
+		if(FD_ISSET(0, &file_desc)) {
+			memset(buffer, 0, MAX);
+			read(0, buffer, MAX);
+			send(sockfd, buffer, MAX, 0);
+		}
+
+		if(FD_ISSET(sockfd, &file_desc)) {
+			memset(buffer, 0, MAX);
+			recv(sockfd, buffer, MAX, 0);
+			printf("%s\n", buffer);
+		}
+		
+	}
 
 	// close the socket 
 	close(sockfd); 
