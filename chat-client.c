@@ -21,6 +21,7 @@
 
 int main(int argc, char** argv) { 
 	int sockfd, connfd; 
+	int recv_value = 10;
 	char buffer[MAX];
 	struct sockaddr_in servaddr, cli;
 	fd_set file_desc;
@@ -55,7 +56,7 @@ int main(int argc, char** argv) {
 		FD_SET(0, &file_desc);
 		FD_SET(sockfd, &file_desc);
 
-		if( (select(sockfd + 1, &file_desc, NULL, NULL, NULL) < 0) && (errno!=EINTR) ) {
+		if( (select(sockfd + 1, &file_desc, NULL, NULL, NULL) < 0) && (errno!=EINTR) && recv_value != 0 ) {
 			perror("Select error.");
 			exit(-1);
 		}
@@ -73,9 +74,15 @@ int main(int argc, char** argv) {
 		if(FD_ISSET(sockfd, &file_desc)) {
 			memset(buffer, 0, MAX);
 			
-			if(recv(sockfd, buffer, MAX, 0) == -1) {
+			recv_value = recv(sockfd, buffer, MAX, 0);
+			if( recv_value == -1) {
 				perror("Receive error.");
 				exit(-1);
+			}
+			if( recv_value == 0){
+				printf("O server terminou\n");
+				close(sockfd);
+				exit(0);
 			}
 			
 			printf("%s", buffer);	
