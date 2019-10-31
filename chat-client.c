@@ -64,8 +64,15 @@ int main(int argc, char** argv) {
 		if(FD_ISSET(0, &file_desc)) {
 			memset(buffer, 0, MAX);
 			
-			if(read(0, buffer, MAX) == -1) 
+			int rd = read(0, buffer, MAX);
+			
+			if(rd == -1) 
 				perror("Read error.");
+			if(rd == 0)
+				exit(0);
+
+			if(buffer[0] == EOF)
+				exit(0);
 			
 			if(send(sockfd, buffer, MAX, 0) == -1)
 				perror("Send error.");
@@ -79,8 +86,8 @@ int main(int argc, char** argv) {
 				perror("Receive error.");
 				exit(-1);
 			}
-			if( recv_value == 0){
-				printf("O server terminou\n");
+			if(recv_value == 0){
+				fprintf(stderr, "O server terminou.\n");
 				close(sockfd);
 				exit(0);
 			}

@@ -93,9 +93,9 @@ int main(int argc , char *argv[]) {
             }
 
             for(i = 0; i < MAX_CLIENTS; i++)  
-                if(client_socket[i] != 0 && client_socket[i] != new_client_socket)
+                if(client_socket[i] != 0)
                     if(send(client_socket[i], buffer, MAX_MESSAGE, 0) == -1)
-                        perror("ERROR -> send"); 
+                        perror("ERROR -> send");
         } 
             
         for(i = 0; i < MAX_CLIENTS; i++){ 
@@ -105,7 +105,7 @@ int main(int argc , char *argv[]) {
             
             if(FD_ISSET(socket_descriptor, &readfds)){ 
                 getpeername(socket_descriptor, (struct sockaddr*)&address, (socklen_t*)&addrsize); 
-                
+
                 if ((read_out_value = read(socket_descriptor, buffer, MAX_MESSAGE)) == 0){ 
                     sprintf(message, "%s:%d left.\n", inet_ntoa(address.sin_addr), ntohs(address.sin_port));
                     printf("%s", message); 
