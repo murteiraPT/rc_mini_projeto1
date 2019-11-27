@@ -39,8 +39,7 @@ int main(int argc, char const *argv[]){
     servaddr.sin_port = htons(port); 
       
     // Bind the socket with the server address 
-    if ( bind(sockfd, (const struct sockaddr *)&servaddr, sizeof(servaddr)) < 0) 
-    { 
+    if (bind(sockfd, (const struct sockaddr *)&servaddr, sizeof(servaddr)) < 0){ 
         perror("bind failed"); 
         exit(EXIT_FAILURE); 
     } 
@@ -51,15 +50,15 @@ int main(int argc, char const *argv[]){
     for(;;){
       socklen_t len = sizeof(cliaddr);
       status_packet = recvfrom(sockfd, (struct data_pkt_t*)&packet, sizeof(packet) , 0, (struct sockaddr *) &cliaddr, &len); 
+      
       puts("INFO DO PACKET RECEBIDO :");
       printf("%u\n", packet.seq_num);
       printf("%s\n", packet.data);
       printf("%d\n", status_packet);
-  
-   		
+   	
       
       if(status_packet == -1){ //Recebemos um packet corrompido
-        puts("DEU MERDA");
+        puts("OOPS");
         continue;
    		} 		
 
@@ -69,21 +68,18 @@ int main(int argc, char const *argv[]){
    		}
 
      	else{  //tudo bem do nosso lado vamos mandar um ack 
-          puts("ENTREI NO else");
           last_seq_num = packet.seq_num;
           ack.seq_num = packet.seq_num +1;
           
           fseek(fp, 1000 * (packet.seq_num - 1), SEEK_SET);
-          
-          fwrite(packet.data,1,sizeof(packet.data), fp);
-
+          fwrite(packet.data, 1, sizeof(packet.data), fp);
           sendto(sockfd, (struct ack_pkt_t *)&ack, (size_t)sizeof(ack), 0, ( struct sockaddr *) &cliaddr, sizeof(cliaddr));     
      	}
 
-      if(strlen(packet.data) < 1000){
+      if(status_packet < 1004){
         fclose(fp);
         puts("ULTIMO PACKET ACABOU");
-        exit(-1 );
+        exit(-1);
       }
     
     }

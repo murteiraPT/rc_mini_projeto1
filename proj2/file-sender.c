@@ -5,12 +5,13 @@
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <time.h>
-
 #include <sys/types.h> 
 #include <netinet/in.h> 
 #include <errno.h> 
 #include <arpa/inet.h> 
 #include <unistd.h> 
+#include <stddef.h>
+
 
 #include "packet-format.h"
 
@@ -24,9 +25,11 @@ data_pkt_t get_chunk(char* file_name, uint32_t seq_num, FILE * file_i) {
     fseek(file_i, 1000 * (seq_num - 1), SEEK_SET);
     memset(&packet.data,0,sizeof(packet.data));
     int bytes = fread(packet.data, 1000, 1, file_i);
-    printf("%d\n", bytes); 
-    packet.seq_num = seq_num; 
 
+    if(bytes < 0)
+        perror("fread error.");
+ 
+    packet.seq_num = seq_num; 
 
     return packet;
 }
@@ -38,6 +41,7 @@ int main(int argc, char** argv) {
 	int port = atoi(argv[3]);
 	struct sockaddr_in servaddr;
     struct hostent* host;
+    socklen_t servaddr_size;
         
     char* file_name = argv[1];
     host  = gethostbyname(argv[2]);
@@ -66,23 +70,41 @@ int main(int argc, char** argv) {
 	servaddr.sin_addr = *((struct in_addr *)host->h_addr);
 	servaddr.sin_port = htons(port);
     
-    while(1) {
+    servaddr_size = sizeof(servaddr);
+    int bytes = 1000;
+
+    while(bytes >=1000) {
 
         int tentativas = 3;
-        data_pkt_t packet = get_chunk(file_name, seq_num, file_i);
+
+        data_pkt_t packet;
         ack_pkt_t ack;
 
-        printf("%u\n", packet.seq_num);
-        printf("%s\n", packet.data);
+
+
+        fseek(file_i, 1000 * (seq_num - 1), SEEK_SET);
+        memset(&packet.data,0,sizeof(packet.data));
+        bytes = fread(packet.data, 1, 1000, file_i);
+
+        if(bytes < 0)
+            perror("fread error.");
+ 
+        packet.seq_num = seq_num; 
+
+
+        printf("bytes = %d\n", bytes);
+        printf("seq_sum%u\n", packet.seq_num);
+        printf("data: %s\n", packet.data);
         
 
-        sendto(sockfd, (data_pkt_t *) &packet, sizeof(packet), 0, (struct sockaddr *) &servaddr, sizeof(servaddr));
+        sendto(sockfd, (data_pkt_t *) &packet, bytes + offsetof(data_pkt_t, data), 0, (struct sockaddr *) &servaddr, servaddr_size);
 
         while (tentativas > 0){
 
-            if(recvfrom(sockfd, (ack_pkt_t *) &ack, sizeof(ack), 0, (struct sockaddr *) &servaddr,(socklen_t *) sizeof(servaddr)) < 0){
-                sendto(sockfd, (data_pkt_t *) &packet, sizeof(packet), 0, (struct sockaddr *) &servaddr, sizeof(servaddr));
+            if(recvfrom(sockfd, (ack_pkt_t *) &ack, sizeof(ack), 0, (struct sockaddr *) &servaddr, &servaddr_size) < 0){
+                sendto(sockfd, (data_pkt_t *) &packet, bytes + offsetof(data_pkt_t, data), 0, (struct sockaddr *) &servaddr, servaddr_size);
                 tentativas--;
+    
             printf("ACK : %d\n", ack.seq_num);
 
                 if(tentativas == 0) {
@@ -92,15 +114,14 @@ int main(int argc, char** argv) {
                 }
                 continue;
             }
-
             break;
         }
 
         seq_num++;
 
-        if(strlen(packet.data) < 1000) {
-            fclose(file_i);
-	        close(sockfd); 
-        }
     }
+
+    fclose(file_i);
+    close(sockfd);
+    return 0;
 } 
