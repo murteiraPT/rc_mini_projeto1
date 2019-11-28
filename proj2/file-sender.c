@@ -11,6 +11,7 @@
 #include <arpa/inet.h> 
 #include <unistd.h> 
 #include <stddef.h>
+#include <limits.h>
 
 #include "packet-format.h"
 
@@ -20,26 +21,7 @@
 
 socklen_t servaddr_size;
 struct sockaddr_in servaddr;
-int last_seq_num;
-
-
-data_pkt_t get_chunk(char* file_name, uint32_t seq_num, FILE * file_i) {
-    data_pkt_t packet;
-      
-    fseek(file_i, 1000 * (seq_num - 1), SEEK_SET);
-    memset(&packet.data,0,sizeof(packet.data));
-    int bytes = fread(packet.data, 1000, 1, file_i);
-
-    if(bytes < 0)
-        perror("fread error.");
- 
-    packet.seq_num = seq_num;
-
-    if(bytes < 1000)
-        last_seq_num = seq_num;
-
-    return packet;
-}
+int last_seq_num = INT_MAX;
 
 
 void send_packet(FILE* file_i, int seq_num, int sockfd) {
@@ -54,8 +36,8 @@ void send_packet(FILE* file_i, int seq_num, int sockfd) {
 
     packet.seq_num = seq_num; 
 
-    printf("seq_sum%u\n", packet.seq_num);
-    printf("data: %s\n", packet.data);            
+    if(bytes < 1000)
+        last_seq_num = seq_num;      
 
     sendto(sockfd, (data_pkt_t *) &packet, bytes + offsetof(data_pkt_t, data), 0, (struct sockaddr *) &servaddr, servaddr_size);
 }
@@ -106,10 +88,10 @@ int main(int argc, char** argv) {
         int tentativas = 3;
         int i, j, e, d;
 
-        //ack.selective_acks <<= 1;   // Shift left para incluirmos a base.
+        ack.selective_acks <<= 1;   // Shift left para incluirmos a base.
             
         // ENVIAR NUMERO WINDOW_SIZE DE PACKETS.
-        for(i = base, j = 0; i <= base + window_size; i++, j++) {
+        for(i = base, j = 0; i < base + window_size; i++, j++) { // < ou <= ?
             
             // Verificar quais os packets que sao enviados segundo o ack.selective_acks.
             if(CHECK_BIT(ack.selective_acks, j) == 0){
@@ -127,9 +109,8 @@ int main(int argc, char** argv) {
                     tentativas--;
                 
                     for(e = base, j = 0; e <= base + window_size; e++, j++) {
-                        // Verificar quais os packets que sao enviados segundo o ack.selective_acks.
                         
-
+                        // Verificar quais os packets que sao enviados segundo o ack.selective_acks.  
                         if(CHECK_BIT(ack.selective_acks, j) == 0){
                             send_packet(file_i, e, sockfd);
                         }
