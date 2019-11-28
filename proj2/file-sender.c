@@ -12,11 +12,15 @@
 #include <unistd.h> 
 #include <stddef.h>
 
-
 #include "packet-format.h"
 
 #define Socket_Adress struct sockaddr
-#define SEGMENTS 1000
+
+#define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
+
+socklen_t servaddr_size;
+struct sockaddr_in servaddr;
+int last_seq_num;
 
 
 data_pkt_t get_chunk(char* file_name, uint32_t seq_num, FILE * file_i) {
@@ -29,19 +33,39 @@ data_pkt_t get_chunk(char* file_name, uint32_t seq_num, FILE * file_i) {
     if(bytes < 0)
         perror("fread error.");
  
-    packet.seq_num = seq_num; 
+    packet.seq_num = seq_num;
+
+    if(bytes < 1000)
+        last_seq_num = seq_num;
 
     return packet;
 }
 
 
+void send_packet(FILE* file_i, int seq_num, int sockfd) {
+    data_pkt_t packet;
+
+    fseek(file_i, 1000 * (seq_num - 1), SEEK_SET);
+    memset(&packet.data,0,sizeof(packet.data));
+    int bytes = fread(packet.data, 1, 1000, file_i);
+
+    if(bytes < 0)
+        perror("fread error.");
+
+    packet.seq_num = seq_num; 
+
+    printf("seq_sum%u\n", packet.seq_num);
+    printf("data: %s\n", packet.data);            
+
+    sendto(sockfd, (data_pkt_t *) &packet, bytes + offsetof(data_pkt_t, data), 0, (struct sockaddr *) &servaddr, servaddr_size);
+}
+
+
 int main(int argc, char** argv) { 
 	int sockfd; 
-    uint32_t seq_num = 1;
 	int port = atoi(argv[3]);
-	struct sockaddr_in servaddr;
     struct hostent* host;
-    socklen_t servaddr_size;
+    int window_size = atoi(argv[4]);
         
     char* file_name = argv[1];
     host  = gethostbyname(argv[2]);
@@ -67,58 +91,80 @@ int main(int argc, char** argv) {
 	bzero(&servaddr, sizeof(servaddr)); 
 
 	servaddr.sin_family = AF_INET; 
-	servaddr.sin_addr = *((struct in_addr *)host->h_addr);
+	servaddr.sin_addr = *((struct in_addr *)host->h_name);
 	servaddr.sin_port = htons(port);
     
     servaddr_size = sizeof(servaddr);
-    int bytes = 1000;
+    int base = 1;
+    ack_pkt_t ack;
+    ack.selective_acks = 0;
 
-    while(bytes >=1000) {
+    int next_to_send = window_size + base;
+
+    while(ack.seq_num != last_seq_num) {
 
         int tentativas = 3;
+        int i, j, e, d;
 
-        data_pkt_t packet;
-        ack_pkt_t ack;
-
-
-
-        fseek(file_i, 1000 * (seq_num - 1), SEEK_SET);
-        memset(&packet.data,0,sizeof(packet.data));
-        bytes = fread(packet.data, 1, 1000, file_i);
-
-        if(bytes < 0)
-            perror("fread error.");
- 
-        packet.seq_num = seq_num; 
-
-
-        printf("bytes = %d\n", bytes);
-        printf("seq_sum%u\n", packet.seq_num);
-        printf("data: %s\n", packet.data);
-        
-
-        sendto(sockfd, (data_pkt_t *) &packet, bytes + offsetof(data_pkt_t, data), 0, (struct sockaddr *) &servaddr, servaddr_size);
-
-        while (tentativas > 0){
-
-            if(recvfrom(sockfd, (ack_pkt_t *) &ack, sizeof(ack), 0, (struct sockaddr *) &servaddr, &servaddr_size) < 0){
-                sendto(sockfd, (data_pkt_t *) &packet, bytes + offsetof(data_pkt_t, data), 0, (struct sockaddr *) &servaddr, servaddr_size);
-                tentativas--;
-    
-            printf("ACK : %d\n", ack.seq_num);
-
-                if(tentativas == 0) {
-                    fclose(file_i);
-                    close(sockfd);
-                    exit(-1);
-                }
-                continue;
+        //ack.selective_acks <<= 1;   // Shift left para incluirmos a base.
+            
+        // ENVIAR NUMERO WINDOW_SIZE DE PACKETS.
+        for(i = base, j = 0; i <= base + window_size; i++, j++) {
+            
+            // Verificar quais os packets que sao enviados segundo o ack.selective_acks.
+            if(CHECK_BIT(ack.selective_acks, j) == 0){
+                send_packet(file_i, i, sockfd);
             }
-            break;
+        }    
+
+        for(i = base, j = 0; i <= base + window_size; j++) {
+
+            // RECEBER OS ACKS DOS PACKETS ENVIADOS
+            while (tentativas > 0){
+
+                // Verificamos se houve algum timeout. Caso tenha havido, enviar de novo os que falharam.
+                if(recvfrom(sockfd, (ack_pkt_t *) &ack, sizeof(ack), 0, (struct sockaddr *) &servaddr, &servaddr_size) < 0){
+                    tentativas--;
+                
+                    for(e = base, j = 0; e <= base + window_size; e++, j++) {
+                        // Verificar quais os packets que sao enviados segundo o ack.selective_acks.
+                        
+
+                        if(CHECK_BIT(ack.selective_acks, j) == 0){
+                            send_packet(file_i, e, sockfd);
+                        }
+                    }
+
+                    if(tentativas == 0) {
+                        fclose(file_i);
+                        close(sockfd);
+                        exit(-1);
+                    }
+                    continue;
+                }
+
+                // Aqui recebeste um ack.
+                tentativas = 3;
+                
+                if (ack.seq_num > base) {             
+                    int jumps_num = ack.seq_num - base;
+                    base = ack.seq_num;
+                    i = base;
+
+                    for(d = 0; d < jumps_num; d++) {
+                        // Verificar quais os packets que sao enviados segundo o ack.selective_acks.
+
+                        if(CHECK_BIT(ack.selective_acks, d) == 0){
+                            send_packet(file_i, next_to_send, sockfd);
+                            next_to_send += 1;
+                        }
+                    }
+                }
+
+                i++;
+                break;
+            }
         }
-
-        seq_num++;
-
     }
 
     fclose(file_i);
