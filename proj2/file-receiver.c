@@ -25,7 +25,7 @@ int main(int argc, char const *argv[]){
 	
 	int sockfd;
 	int status_packet;
-  int last_packet_seq_num;
+  int last_packet_seq_num=-1;
 	const char* file_name = argv[1];
 	int port = atoi(argv[2]);	
 	struct sockaddr_in servaddr,cliaddr;
@@ -56,39 +56,32 @@ int main(int argc, char const *argv[]){
   fp = fopen(file_name, "w");
   int base = 1;
 	int window_size = atoi(argv[3]);
-  ack.seq_num = htonl(base);
-  ack.selective_acks = htonl(0);
+  ack.seq_num = base;
+  ack.selective_acks = (0);
 
 
 
  for(;;){
     socklen_t len = sizeof(cliaddr);
-    puts("VOU FICAR PRESO");
     status_packet = recvfrom(sockfd, (struct data_pkt_t*)&packet, sizeof(packet) , 0, (struct sockaddr *) &cliaddr, &len); 
-    printf("%s\n", packet.data);
-    printf("%d\n", packet.seq_num);
     
     if(status_packet == -1){ //Recebemos um packet corrompido
-      puts("MAGIA");
       continue;
     } 		
 
     if(status_packet < 1004){
-      puts("ULTIMO PACKET UPDATE");
       last_packet_seq_num = packet.seq_num;
     }
 
 
     if(packet.seq_num < base || packet.seq_num > base + window_size){ //recebemos o packet da base podemos avançar a nossa window
-        puts("PACKET FORA DA WINDOW");
         sendto(sockfd, (struct ack_pkt_t *)&ack, (size_t)sizeof(ack), 0, (struct sockaddr *) &cliaddr, sizeof(cliaddr));     
     }
 
     else{  
         
         if(packet.seq_num != base){
-          puts("RECEBEMOS PACOTE DIFERENTE BASE");
-          ack.selective_acks = htonl(changeSelective(ack.selective_acks, base, packet.seq_num));
+          ack.selective_acks = (changeSelective(ack.selective_acks, base, packet.seq_num));
     
           fseek(fp, 1000 * (packet.seq_num - 1), SEEK_SET);
           fwrite(packet.data, 1, sizeof(packet.data), fp);
@@ -97,25 +90,22 @@ int main(int argc, char const *argv[]){
         }
 
         if(packet.seq_num == base){
-          puts("RECEBEMOS PACOTE DA BASE -> MUDA A BASE");
           fseek(fp, 1000 * (packet.seq_num - 1), SEEK_SET);
           fwrite(packet.data, 1, sizeof(packet.data), fp);
-
-          ack.selective_acks = htonl(changeSelective(ack.selective_acks, base, packet.seq_num));
+          ack.selective_acks = (changeSelective(ack.selective_acks, base, packet.seq_num));
           
           while(CHECK_BIT(ack.selective_acks,0) != 0){
             base++;
             ack.selective_acks >>= 1;
           }
          
-          ack.seq_num = htonl(base);
+          ack.seq_num = (base);
           sendto(sockfd, (struct ack_pkt_t *)&ack, (size_t)sizeof(ack), 0, ( struct sockaddr *) &cliaddr, sizeof(cliaddr));     
         
         }        
     }
 
     if(last_packet_seq_num == base-1){
-      puts("ACABOU");
       fclose(fp);
       exit(-1);
     }
