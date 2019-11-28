@@ -24,6 +24,7 @@ struct sockaddr_in servaddr;
 int last_seq_num = INT_MAX;
 
 
+
 void send_packet(FILE* file_i, int seq_num, int sockfd) {
     data_pkt_t packet;
 
@@ -34,10 +35,12 @@ void send_packet(FILE* file_i, int seq_num, int sockfd) {
     if(bytes < 0)
         perror("fread error.");
 
-    packet.seq_num = seq_num; 
+    if(bytes < 1000)
+        last_seq_num = seq_num;
 
     if(bytes < 1000)
         last_seq_num = seq_num;      
+    packet.seq_num = seq_num;            
 
     sendto(sockfd, (data_pkt_t *) &packet, bytes + offsetof(data_pkt_t, data), 0, (struct sockaddr *) &servaddr, servaddr_size);
 }

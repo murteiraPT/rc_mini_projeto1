@@ -1,0 +1,8 @@
+* 
+FROM((
+    SELECT anomalia_id
+    FROM (local_publico NATURAL JOIN item 
+        JOIN incidencia ON item.id = incidencia.item_id)iil
+    WHERE iil.latitude BETWEEN 0.452348 AND 83.924201
+        AND iil.longitude BETWEEN -98.639858 AND 159.092049) a 
+JOIN anomalia ON a.anomalia_id = anomalia.id)
