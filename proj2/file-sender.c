@@ -37,12 +37,14 @@ void send_packet(FILE* file_i, int seq_num, int sockfd) {
 
     if(bytes < 1000)
         last_seq_num = seq_num;
-
-    if(bytes < 1000)
-        last_seq_num = seq_num;      
+    
     packet.seq_num = seq_num;            
-
+    puts("ANTES DO SEND");
+    printf("%s\n",packet.data);
+    printf("%d\n",seq_num);
     sendto(sockfd, (data_pkt_t *) &packet, bytes + offsetof(data_pkt_t, data), 0, (struct sockaddr *) &servaddr, servaddr_size);
+    puts("DEPOIS DO SEND");
+
 }
 
 
@@ -76,7 +78,7 @@ int main(int argc, char** argv) {
 	bzero(&servaddr, sizeof(servaddr)); 
 
 	servaddr.sin_family = AF_INET; 
-	servaddr.sin_addr = *((struct in_addr *)host->h_name);
+	servaddr.sin_addr = *((struct in_addr *)host->h_addr);
 	servaddr.sin_port = htons(port);
     
     servaddr_size = sizeof(servaddr);
@@ -95,7 +97,7 @@ int main(int argc, char** argv) {
             
         // ENVIAR NUMERO WINDOW_SIZE DE PACKETS.
         for(i = base, j = 0; i < base + window_size; i++, j++) { // < ou <= ?
-            
+            printf("Tou a mandar o %d\n", i);
             // Verificar quais os packets que sao enviados segundo o ack.selective_acks.
             if(CHECK_BIT(ack.selective_acks, j) == 0){
                 send_packet(file_i, i, sockfd);
@@ -126,9 +128,12 @@ int main(int argc, char** argv) {
                     }
                     continue;
                 }
+                printf("%s\n", "Recebeu 1");
 
                 // Aqui recebeste um ack.
                 tentativas = 3;
+                ack.seq_num = ntohl(ack.seq_num);
+                ack.selective_acks = ntohl(ack.selective_acks);
                 
                 if (ack.seq_num > base) {             
                     int jumps_num = ack.seq_num - base;
