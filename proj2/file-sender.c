@@ -35,7 +35,7 @@ void send_packet(FILE* file_i, int seq_num, int sockfd) {
     if(bytes < 0)
         perror("fread error.");
 
-    if(bytes < 1000 && bytes != 0)
+    if(bytes < 1000 && bytes >= 0)
         last_seq_num = seq_num;
     
     packet.seq_num = seq_num;
@@ -91,10 +91,9 @@ int main(int argc, char** argv) {
         for(i = base, j = 0; i < base + window_size; i++, j++) {
             // Verificar quais os packets que sao enviados segundo o ack.selective_acks.
             if (i > last_seq_num){
-                close(sockfd);
-                fclose(file_i);
-                return 0;
+                break;
             }
+
             if(CHECK_BIT(ack.selective_acks, j) == 0){
                 send_packet(file_i, i, sockfd);
             }
@@ -110,7 +109,6 @@ int main(int argc, char** argv) {
                     tentativas--;  
 
                     for(e = base, f = 0; e <= base + window_size; e++, f++) {
-                        
                         // Verificar quais os packets que sao enviados segundo o ack.selective_acks.  
                         if(CHECK_BIT(ack.selective_acks, f) == 0){
                             send_packet(file_i, e, sockfd);
@@ -125,27 +123,27 @@ int main(int argc, char** argv) {
                     continue;
                 }
 
-                // Aqui recebeste um ack.
-                tentativas = 3;
-                
-                if (ack.seq_num > base) {             
-                    int jumps_num = ack.seq_num - base;
-                    base = ack.seq_num;
-                    i = base;
-                
-                    if (ack.seq_num > last_seq_num){
-                        close(sockfd);
-                        fclose(file_i);
-                        return 0;
-                    }
-
-                    for(d = 0; d < jumps_num; d++) {
-                        send_packet(file_i, next_to_send, sockfd);
-                        next_to_send += 1;
-                    }
-                }
-
                 break;
+            }
+
+            // Aqui recebeste um ack.
+            tentativas = 3;
+
+            if (ack.seq_num > base) {           
+                int jumps_num = ack.seq_num - base;
+                base = ack.seq_num;
+                i = base;
+
+                if (ack.seq_num > last_seq_num){
+                    close(sockfd);
+                    fclose(file_i);
+                    return 0;
+                }
+                
+                for(d = 0; d < jumps_num; d++) {
+                    send_packet(file_i, next_to_send, sockfd);
+                    next_to_send += 1;
+                }     
             }
         }
     }

@@ -23,7 +23,7 @@ int main(int argc, char const *argv[]){
 	
 	int sockfd;
 	int status_packet;
-  int last_packet_seq_num=-1;
+  int last_packet_seq_num = -1;
 	const char* file_name = argv[1];
 	int port = atoi(argv[2]);	
 	struct sockaddr_in servaddr,cliaddr;
@@ -55,7 +55,7 @@ int main(int argc, char const *argv[]){
   int base = 1;
 	int window_size = atoi(argv[3]);
   ack.seq_num = base;
-  ack.selective_acks = (0);
+  ack.selective_acks = 0;
 
 
 
@@ -90,16 +90,18 @@ int main(int argc, char const *argv[]){
         if(packet.seq_num == base){
           fseek(fp, 1000 * (packet.seq_num - 1), SEEK_SET);
           fwrite(packet.data, 1, status_packet - 4, fp);
-          ack.selective_acks = (changeSelective(ack.selective_acks, base, packet.seq_num));
           
-          while(CHECK_BIT(ack.selective_acks,0) != 0){
+          while(CHECK_BIT(ack.selective_acks, 0) != 0){
             base++;
             ack.selective_acks >>= 1;
           }
+
+          base++;
+          ack.selective_acks >>= 1;
          
           ack.seq_num = base;
           sendto(sockfd, (struct ack_pkt_t *)&ack, (size_t)sizeof(ack), 0, ( struct sockaddr *) &cliaddr, sizeof(cliaddr));     
-        
+  
         }        
     }
 
