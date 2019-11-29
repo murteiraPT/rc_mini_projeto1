@@ -12,6 +12,7 @@
 #include <unistd.h> 
 #include <stddef.h>
 #include <limits.h>
+#include <math.h>
 
 #include "packet-format.h"
 
@@ -24,23 +25,21 @@ struct sockaddr_in servaddr;
 int last_seq_num = INT_MAX;
 
 
-
 void send_packet(FILE* file_i, int seq_num, int sockfd) {
     data_pkt_t packet;
 
     fseek(file_i, 1000 * (seq_num - 1), SEEK_SET);
-    memset(&packet.data,0,sizeof(packet.data));
+    memset(&packet.data, 0, sizeof(packet.data));
     int bytes = fread(packet.data, 1, 1000, file_i);
 
     if(bytes < 0)
         perror("fread error.");
 
-    if(bytes < 1000)
+    if(bytes < 1000 && bytes != 0)
         last_seq_num = seq_num;
     
-    packet.seq_num = seq_num; 
-    sendto(sockfd, (data_pkt_t *) &packet, bytes + offsetof(data_pkt_t, data), 0, (struct sockaddr *) &servaddr, servaddr_size);
-
+    packet.seq_num = seq_num;
+    sendto(sockfd, (data_pkt_t *) &packet, bytes + 4, 0, (struct sockaddr *) &servaddr, servaddr_size);
 }
 
 
@@ -83,35 +82,37 @@ int main(int argc, char** argv) {
 
     int next_to_send = window_size + base;
 
-    while(ack.seq_num != last_seq_num) {
+    while(ack.seq_num - 1 != last_seq_num) {
 
         int tentativas = 3;
-        int i, j, e, d;
-
-        ack.selective_acks <<= 1;   // Shift left para incluirmos a base.
+        int i, j, d, e, f;
             
-        // ENVIAR NUMERO WINDOW_SIZE DE PACKETS.
-        for(i = base, j = 0; i < base + window_size; i++, j++) { // < ou <= ?
+        // ENVIAR NUMERO WINDOW_SIZE DE PACKETS.    
+        for(i = base, j = 0; i < base + window_size; i++, j++) {
             // Verificar quais os packets que sao enviados segundo o ack.selective_acks.
-            
+            if (i > last_seq_num){
+                close(sockfd);
+                fclose(file_i);
+                return 0;
+            }
             if(CHECK_BIT(ack.selective_acks, j) == 0){
                 send_packet(file_i, i, sockfd);
             }
-        }    
+        }
 
-        for(i = base, j = 0; i <= base + window_size; j++) {
+        for(i = base, j = 0; i < base + window_size; i++, j++) {
 
             // RECEBER OS ACKS DOS PACKETS ENVIADOS
             while (tentativas > 0){
 
                 // Verificamos se houve algum timeout. Caso tenha havido, enviar de novo os que falharam.
                 if(recvfrom(sockfd, (ack_pkt_t *) &ack, sizeof(ack), 0, (struct sockaddr *) &servaddr, &servaddr_size) < 0){
-                    tentativas--;
-                
-                    for(e = base, j = 0; e <= base + window_size; e++, j++) {
+                    tentativas--;  
+
+                    for(e = base, f = 0; e <= base + window_size; e++, f++) {
                         
                         // Verificar quais os packets que sao enviados segundo o ack.selective_acks.  
-                        if(CHECK_BIT(ack.selective_acks, j) == 0){
+                        if(CHECK_BIT(ack.selective_acks, f) == 0){
                             send_packet(file_i, e, sockfd);
                         }
                     }
@@ -123,27 +124,27 @@ int main(int argc, char** argv) {
                     }
                     continue;
                 }
+
                 // Aqui recebeste um ack.
                 tentativas = 3;
-                ack.seq_num = (ack.seq_num);
-                ack.selective_acks = (ack.selective_acks);
                 
                 if (ack.seq_num > base) {             
                     int jumps_num = ack.seq_num - base;
                     base = ack.seq_num;
                     i = base;
+                
+                    if (ack.seq_num > last_seq_num){
+                        close(sockfd);
+                        fclose(file_i);
+                        return 0;
+                    }
 
                     for(d = 0; d < jumps_num; d++) {
-                        // Verificar quais os packets que sao enviados segundo o ack.selective_acks.
-
-                        if(CHECK_BIT(ack.selective_acks, d) == 0){
-                            send_packet(file_i, next_to_send, sockfd);
-                            next_to_send += 1;
-                        }
+                        send_packet(file_i, next_to_send, sockfd);
+                        next_to_send += 1;
                     }
                 }
 
-                i++;
                 break;
             }
         }

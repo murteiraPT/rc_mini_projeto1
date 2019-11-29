@@ -16,8 +16,6 @@ int changeSelective(int selective_acks, int base, int received_packet){
   return selective_acks | ( 1 << shift ); 
 }
 
-
-
 int main(int argc, char const *argv[]){
 	
   if( argc != 4)
@@ -84,14 +82,14 @@ int main(int argc, char const *argv[]){
           ack.selective_acks = (changeSelective(ack.selective_acks, base, packet.seq_num));
     
           fseek(fp, 1000 * (packet.seq_num - 1), SEEK_SET);
-          fwrite(packet.data, 1, sizeof(packet.data), fp);
+          fwrite(packet.data, 1, status_packet - 4, fp);
           sendto(sockfd, (struct ack_pkt_t *)&ack, (size_t)sizeof(ack), 0, ( struct sockaddr *) &cliaddr, sizeof(cliaddr));     
 
         }
 
         if(packet.seq_num == base){
           fseek(fp, 1000 * (packet.seq_num - 1), SEEK_SET);
-          fwrite(packet.data, 1, sizeof(packet.data), fp);
+          fwrite(packet.data, 1, status_packet - 4, fp);
           ack.selective_acks = (changeSelective(ack.selective_acks, base, packet.seq_num));
           
           while(CHECK_BIT(ack.selective_acks,0) != 0){
@@ -99,15 +97,16 @@ int main(int argc, char const *argv[]){
             ack.selective_acks >>= 1;
           }
          
-          ack.seq_num = (base);
+          ack.seq_num = base;
           sendto(sockfd, (struct ack_pkt_t *)&ack, (size_t)sizeof(ack), 0, ( struct sockaddr *) &cliaddr, sizeof(cliaddr));     
         
         }        
     }
 
-    if(last_packet_seq_num == base-1){
+    if(base == last_packet_seq_num + 1){
       fclose(fp);
-      exit(-1);
+      close(sockfd);
+      exit(0);
     }
   }
 	return 0;
