@@ -39,6 +39,9 @@ void send_packet(FILE* file_i, int seq_num, int sockfd) {
         last_seq_num = seq_num;
     
     packet.seq_num = seq_num;
+    puts("PACKET QUE VOU MANDAR");
+    printf("%s\n packet data = ", packet.data);
+    printf("%d\n packet seq_num = ", packet.seq_num);
     sendto(sockfd, (data_pkt_t *) &packet, bytes + 4, 0, (struct sockaddr *) &servaddr, servaddr_size);
 }
 
@@ -106,6 +109,9 @@ int main(int argc, char** argv) {
 
                 // Verificamos se houve algum timeout. Caso tenha havido, enviar de novo os que falharam.
                 if(recvfrom(sockfd, (ack_pkt_t *) &ack, sizeof(ack), 0, (struct sockaddr *) &servaddr, &servaddr_size) < 0){
+                    puts("ACK QUE VOU MANDAR----avança window");
+                    printf("%d\n", ack.seq_num);     
+                    printf("%d\n", ack.selective_acks);    
                     tentativas--;  
 
                     for(e = base, f = 0; e <= base + window_size; e++, f++) {
@@ -121,6 +127,7 @@ int main(int argc, char** argv) {
                         exit(-1);
                     }
                     continue;
+
                 }
 
                 break;

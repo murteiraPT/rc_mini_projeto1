@@ -62,7 +62,10 @@ int main(int argc, char const *argv[]){
  for(;;){
     socklen_t len = sizeof(cliaddr);
     status_packet = recvfrom(sockfd, (struct data_pkt_t*)&packet, sizeof(packet) , 0, (struct sockaddr *) &cliaddr, &len); 
-    
+ 
+    printf("%s\n data = ", packet.data);
+    printf("%d\n seq_num = ", packet.seq_num);
+
     if(status_packet == -1){ //Recebemos um packet corrompido
       continue;
     } 		
@@ -73,7 +76,11 @@ int main(int argc, char const *argv[]){
 
 
     if(packet.seq_num < base || packet.seq_num > base + window_size){ //recebemos o packet da base podemos avançar a nossa window
-        sendto(sockfd, (struct ack_pkt_t *)&ack, (size_t)sizeof(ack), 0, (struct sockaddr *) &cliaddr, sizeof(cliaddr));     
+
+        printf("%d\n ack seq_num = ", ack.seq_num);     
+        printf("%d\n ack selective_acks = ", ack.selective_acks);     
+       
+        sendto(sockfd, (struct ack_pkt_t *)&ack, (size_t)sizeof(ack), 0, (struct sockaddr *) &cliaddr, sizeof(cliaddr));
     }
 
     else{  
@@ -83,6 +90,10 @@ int main(int argc, char const *argv[]){
     
           fseek(fp, 1000 * (packet.seq_num - 1), SEEK_SET);
           fwrite(packet.data, 1, status_packet - 4, fp);
+          
+          printf("%d\n ack seq_num = ", ack.seq_num);     
+          printf("%d\n ack selective_acks = ", ack.selective_acks);     
+       
           sendto(sockfd, (struct ack_pkt_t *)&ack, (size_t)sizeof(ack), 0, ( struct sockaddr *) &cliaddr, sizeof(cliaddr));     
 
         }
@@ -100,6 +111,10 @@ int main(int argc, char const *argv[]){
           ack.selective_acks >>= 1;
          
           ack.seq_num = base;
+          
+          printf("%d\n ack seq_num = ", ack.seq_num);     
+          printf("%d\n ack selective_acks = ", ack.selective_acks);     
+       
           sendto(sockfd, (struct ack_pkt_t *)&ack, (size_t)sizeof(ack), 0, ( struct sockaddr *) &cliaddr, sizeof(cliaddr));     
   
         }        
